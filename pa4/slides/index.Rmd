@@ -60,14 +60,14 @@ Descriptive_Fricatives <- Tidy_Fricatives %>%
 kable(Descriptive_Fricatives[1:5], caption = "Descriptive statistics for center of gravity and skewedness by phoneme (voiceless alveolar stop and voiceless prepalatal affricate)")
 ```
 
-```{r, correlation_Phoneme_COG, include=FALSE}
+```{r, fig.retina=2, correlation_Phoneme_COG, include=FALSE}
 correlation <- lm(Skewness ~ COG, data = Tidy_Fricatives)
 summary(correlation)
 cor(Tidy_Fricatives$Skewness, Tidy_Fricatives$COG)
 ```
 ---
 # COG as a Function of Phoneme
-```{r, boxplot_cog}
+```{r, fig.retina=2, boxplot_cog}
 Tidy_Fricatives %>%
   ggplot(aes(x = Phoneme, y = COG)) + geom_boxplot() +
   labs(x = "Phoneme", y = "Average center of gravity by trial", title = "Center of gravity by phoneme") + theme(plot.title = element_text(hjust = .5))
@@ -88,7 +88,7 @@ S_Model_Fricatives <- Tidy_Fricatives %>%
 ```
 
 # Initial Model 
-```{r, plot_model_initial}
+```{r,  fig.retina=2, plot_model_initial}
 S_Model_Fricatives %>%
   ggplot(aes(x = Skewness, y = COG)) +
   geom_point() +
@@ -97,7 +97,7 @@ S_Model_Fricatives %>%
     theme(plot.title = element_text(hjust = 0.5))
 ```
 ---
-```{r, regression_intial}
+```{r,  regression_intial}
 S_Model_Regression <- lm(COG ~ Skewness, data = S_Model_Fricatives)
 ```
 # Summary of Statistical Model
@@ -129,7 +129,7 @@ shapiro.test(residuals(S_Model_Regression))
 ```{r, cooks_model}
 Cooks_Fricatives = cooks.distance(S_Model_Regression)
 ```
-```{r, plot_cooks_distance}
+```{r,  fig.retina=2, plot_cooks_distance}
 plot(Cooks_Fricatives)
 ```
 ---
@@ -160,7 +160,7 @@ tab_model(S_Modified_Regression)
 ```
 ---
 # Revised Model 
-```{r, plot_revised_model}
+```{r,  fig.retina=2, plot_revised_model}
 More_Tidy_Fricatives %>%
   ggplot(aes(x = Skewness, y = COG)) +
   geom_point() +
@@ -189,7 +189,7 @@ shapiro.test(residuals(S_Modified_Regression))
 Cooks_Modified_Fricatives = cooks.distance(S_Modified_Regression)
 ```
 
-```{r, plot_cooks_revised}
+```{r,  fig.retina=2, plot_cooks_revised}
 plot(Cooks_Modified_Fricatives)
 ```
 ---
