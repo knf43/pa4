@@ -1,0 +1,205 @@
+---
+title: "Programming Assignment 4"
+subtitle: "⚔<br/>with xaringan"
+author: "Kaylee Fernandez"
+institute: "Rutgers University"
+date: "March, 7, 2021"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+``` {r setup, include = FALSE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+options(scipen = 999)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(ds4ling)
+library(xaringan)
+library(patchwork)
+library(sjPlot)
+library(lmtest)
+library(lawstat)
+library(ggfortify)
+library(DataCombine)
+library(gvlma)
+library(TMB)
+```
+
+```{r, load_data}
+Raw_Fricatives = read.csv("../data_raw/fricatives.csv")
+```
+
+```{r, tidy_data}
+Tidy_Fricatives = Raw_Fricatives %>%
+  pivot_longer(c("s_cog", "s_skewness", "sh_cog", "sh_skewness"), names_to = "class", values_to = "hz") %>%
+  separate("class", into = c("phoneme", "metric"), sep = "_") %>%
+  pivot_wider(names_from = "metric", values_from = "hz")
+```
+
+```{r, clean_column_names}
+Tidy_Fricatives <- Tidy_Fricatives %>%
+  rename(., c("COG" = "cog"),
+         c("Phoneme" = "phoneme"),
+         c("Skewness" = "skewness"),
+         c("Observation" = "obs"))
+write_csv(Tidy_Fricatives, "../data_tidy/tidy fricatives.csv")
+```
+
+```{r, descriptive_stats}
+Descriptive_Fricatives <- Tidy_Fricatives %>%
+  group_by(Phoneme) %>%
+  summarize(Mean_cog = mean(COG), SD_cog = sd(COG), Mean_skewness = mean(Skewness), SD_skewness = sd(Skewness))
+```
+#Descriptive Statistics
+```{r, kable}
+kable(Descriptive_Fricatives[1:5], caption = "Descriptive statistics for center of gravity and skewedness by phoneme (voiceless alveolar stop and voiceless prepalatal affricate)")
+```
+
+```{r, correlation_Phoneme_COG, include=FALSE}
+correlation <- lm(Skewness ~ COG, data = Tidy_Fricatives)
+summary(correlation)
+cor(Tidy_Fricatives$Skewness, Tidy_Fricatives$COG)
+```
+---
+# COG as a Function of Phoneme
+```{r, boxplot_cog}
+Tidy_Fricatives %>%
+  ggplot(aes(x = Phoneme, y = COG)) + geom_boxplot() +
+  labs(x = "Phoneme", y = "Average center of gravity by trial", title = "Center of gravity by phoneme") + theme(plot.title = element_text(hjust = .5))
+```
+---
+# Skewness as a Function of Phoneme
+```{r, boxplot_skewness}
+Tidy_Fricatives %>%
+  ggplot(aes(x = Phoneme, y = Skewness)) +
+  stat_summary(aes(x = Phoneme, y = Skewness), data = Tidy_Fricatives, geom = "pointrange")
+  labs(x = "Phoneme", y = "Average skewness across trials", title = "Skewness by phoneme") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+---
+```{r, original_model}
+S_Model_Fricatives <- Tidy_Fricatives %>%
+  filter(., Phoneme == "s")
+```
+
+# Initial Model 
+```{r, plot_model_initial}
+S_Model_Fricatives %>%
+  ggplot(aes(x = Skewness, y = COG)) +
+  geom_point() +
+  geom_smooth(method = lm) +
+  labs(x = "Skewness", y = "Center of gravity", title = "Center of gravity as a function of skewness for /s/") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+---
+```{r, regression_intial}
+S_Model_Regression <- lm(COG ~ Skewness, data = S_Model_Fricatives)
+```
+# Summary of Statistical Model
+```{r, tab-model}
+tab_model(S_Model_Regression)
+```
+---
+# Diagnostics of Initial Model
+```{r, diagnostics_intial_model}
+ds4ling::diagnosis(S_Model_Regression)
+```
+
+```{r, assumptions_summary, include=FALSE}
+gvlma::gvlma(S_Model_Regression)
+mean(S_Model_Regression$residuals)
+acf(S_Model_Regression$residuals)
+plot(S_Model_Regression, 1)
+plot(S_Model_Regression, 2)
+plot(S_Model_Regression, 3)
+plot(S_Model_Regression, 4)
+bptest(S_Model_Regression)
+lmtest::dwtest(S_Model_Regression)
+acf(S_Model_Regression$residuals)
+cor.test(S_Model_Fricatives$Skewness, S_Model_Regression$residuals)
+shapiro.test(residuals(S_Model_Regression))
+```
+---
+# Cook's Distance (Initial Model)
+```{r, cooks_model}
+Cooks_Fricatives = cooks.distance(S_Model_Regression)
+```
+```{r, plot_cooks_distance}
+plot(Cooks_Fricatives)
+```
+---
+# Summary of Revised Model
+```{r, create_more_tidy_model}
+More_Tidy_Fricatives = Tidy_Fricatives %>%
+  filter(., Observation > 1 & Observation < 20) %>%
+  filter(Phoneme == "s")
+
+S_Modified_Regression <- lm(COG ~ Skewness, data = More_Tidy_Fricatives)
+
+tab_model(S_Modified_Regression)
+```
+---
+```{r, correlation_Phoneme_COG_Revised_Model, include=FALSE}
+correlation <- lm(Skewness ~ COG, data = More_Tidy_Fricatives)
+summary(correlation)
+cor(More_Tidy_Fricatives$Skewness, More_Tidy_Fricatives$COG)
+```
+
+# Diagnostics of Revised Model
+```{r, assumptions}
+ds4ling::diagnosis(S_Modified_Regression)
+```
+
+```{r, print_modified_model}
+tab_model(S_Modified_Regression)
+```
+---
+# Revised Model 
+```{r, plot_revised_model}
+More_Tidy_Fricatives %>%
+  ggplot(aes(x = Skewness, y = COG)) +
+  geom_point() +
+  geom_smooth(method = lm) +
+  labs(x = "Skewness", y = "Center of gravity", title = "Center of Gravity as a Function of Skewness of /s/", caption = "Figure 5") +
+  theme(plot.title = element_text(hjust =0.5))
+```
+
+```{r, assumptions_summary_revised_model, include=FALSE}
+gvlma::gvlma(S_Modified_Regression)
+mean(S_Modified_Regression$residuals)
+acf(S_Modified_Regression$residuals)
+plot(S_Modified_Regression, 1)
+plot(S_Modified_Regression, 2)
+plot(S_Modified_Regression, 3)
+plot(S_Modified_Regression, 4)
+bptest(S_Modified_Regression)
+lmtest::dwtest(S_Modified_Regression)
+acf(S_Modified_Regression$residuals)
+cor.test(More_Tidy_Fricatives$Skewness, S_Modified_Regression$residuals)
+shapiro.test(residuals(S_Modified_Regression))
+```
+---
+# Cook's Distance (Revised Model)
+```{r, cooks-revised}
+Cooks_Modified_Fricatives = cooks.distance(S_Modified_Regression)
+```
+
+```{r, plot_cooks_revised}
+plot(Cooks_Modified_Fricatives)
+```
+---
+#Findings
+The present analysis examined how a participant produced ten trials of the voiceless alveolar fricative /s/ and ten trials of the voiceless postalveolar fricative /ʃ/. For each trial, measures of the center of gravity and skewness in Hertz were reported. A bivariate regression was conducted to investigate the relationship of plot skewness as a function of the phoneme [s] in predicting Center of Gravity (COG) as a function of the phoneme [s]. 
+
+An inspection of a Residuals vs. Fitted Plot revealed that the assumption of linearity was not met. The assumption that the mean of the residuals was equal to 0 was met. There was homoscedasticity, as assessed by visual inspection of a scatter plot as well as Breusch-Pagan's Test (p > .05). The assumption of no autocorrelation of residuals was not met, as assessed by a Durbin-Watson statistic of 1.3028 (p < .05). The assumption that the predictor and residuals are not correlated was not met (p < .05). Finally, as assessed by Shapiro-Wilk's test, residuals were normally distributed (p > .05). Since an analysis of Cook's distance showed that trials 1 and 20 were not within the standard error of the other data points, these were removed. Following the removal of the outliers, the assumptions were met. 
+---
+#Findings
+There was statistically significant correlation between plot skewness as a function of the phoneme [s] and COG as a function of the phoneme [s], r(18) = 0.98, p < .001. The results of the bivariate regression revealed that the independent variable, plot skewness as a function of the phoneme [s], statistically significantly predicted the dependent variable, plot skewness as a function of the phoneme [s], F(1, 16) = 469.4, p < .001. 
+---
+#Credits
+I worked with Patrick and Diana on this project and also consulted Kyle regarding parts of my code that I was having trouble with. 
