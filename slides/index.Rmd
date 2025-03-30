@@ -1,0 +1,198 @@
+---
+title: "PA4"
+subtitle: "Data Science for Linguists"
+author: "Kaylee Fernandez"
+date: "3/30/2025"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+# load libraries
+
+```{r}
+library("dplyr")
+library("readr")
+library("tidyverse")
+library("ds4ling")
+library("patchwork")
+library("ggplot2")
+library("lmtest")
+```
+
+---
+
+# load raw data
+
+```{r}
+fricatives_raw_data <- read_csv("../data_raw/fricatives/fricatives.csv")
+```
+
+---
+
+# inspect data
+
+```{r}
+str(fricatives_raw_data)
+```
+
+---
+# tidy data
+
+```{r}
+fricatives_tidy <- fricatives_raw_data |>
+  pivot_longer( #change data from wide to long format
+    cols = c(s_cog, s_skewness, sh_cog, sh_skewness), #old columns, 
+    names_to = c("sound", ".value"), #separate each column into sound and variable
+    names_sep = "_" #split the name at the underscore
+  )
+
+str(fricatives_tidy)
+write_csv(fricatives_tidy, "../data_tidy/fricatives_tidy.csv")
+```
+
+---
+
+## boxpot of center of gravity as a function of phoneme
+```{r, echo=FALSE}
+fricatives_tidy |>
+  ggplot() +
+  aes(x = factor(sound), y = cog) + #factor tells R to treat sound as a categorical value
+  geom_boxplot()
+```
+
+
+---
+## skewness as a function of phoneme
+
+```{r, echo=FALSE}
+fricatives_tidy |>
+  ggplot() + # you add + when you are adding a new layer 
+  aes(x = factor(sound), y = skewness) +
+  stat_summary(
+    fun.data = mean_sdl, # plot mean and standard deviation
+    geom = "pointrange"  
+  )
+```
+
+---
+### model examining center of gravity as a function of skewness for the [s] segments
+```{r, echo=FALSE}
+s_data <- fricatives_tidy |>
+  filter(sound == "s")
+
+s_model <- lm(cog ~ skewness, data = s_data)
+summary(s_model)
+```
+---
+# scatterplot of model: figure 1
+```{r, echo=FALSE, message=FALSE}
+s_model |>
+  ggplot() +
+  aes(x = skewness, y = cog) +
+  geom_point() + # add geom scatter plot
+  geom_smooth(method = "lm") + # add regression line
+  labs(
+    title = "Center of gravity as a function of skewness for [s]",
+    x = "Skewness",
+    y = "Center of gravity (Hz)"
+  )
+```
+
+---
+class: center, middle
+
+#check model diagnostics (assumptions)
+
+---
+### 1: The regression model is linear in parameters -- *yes!*
+
+```{r, echo=FALSE, message=FALSE}
+s_model |>
+  ggplot() +
+  aes(x = skewness, y = cog) +
+  geom_point() # add geom scatter plot
+```
+
+---
+
+### 2: The mean of residuals is zero -- *yes, close to zero!*
+
+```{r, echo=FALSE, message=FALSE}
+options(scipen = 999)
+mean(s_model$residuals)
+```
+
+
+---
+
+### 3: Homoskedasticity of residuals or equal variance --- *yes, spread of residuals is the same above and below the line!*
+
+```{r, echo=FALSE, message=FALSE}
+diagnosis(s_model)
+```
+
+---
+
+### 4: No autocorrelation of residuals: *Durbin-Watson test is not significant, no autocorrelation!*
+
+```{r}
+dwtest(s_model)
+```
+
+---
+
+### 5: Predictor and residuals are not correlated: *confirmed, correlation is near 0 so we know predictor and residuals are not correlated!*
+
+```{r}
+cor.test(s_data$skewness, residuals(s_model))
+```
+
+---
+
+### 6: Normality of residuals: *confirmed, residuals look approximately normally distributed*
+
+```{r, echo=FALSE, message=FALSE}
+diagnosis(s_model)
+summary(s_model)
+```
+
+---
+
+### 7: General description of results
+
+#### 
+Data from fricatives were analyzed using a linear model. The model included center of gravity measurement in Hz for [s] as the dependent variable and skewness measurement for [s] as the independent variable. Visual inspection of Q-Q plots and plots of residuals against fitted values revealed no discernible deviations from normality and homoskedasticity. Additional diagnostics confirmed linearity, a near-zero mean of residuals, no autocorrelation, and no correlation between the predictor and residuals. We report p-values with alpha set as 0.05.
+
+Figure 1 (see slide 9) shows center of gravity as a function of skewness for [s]. 
+
+The model revealed a significant fixed effect of skewness . Specifically, higher skewness was associated with higher center of gravity values of [s] (*B* = 1675.60, SE = 139.40, *p* < .001). The model accounted for approximately 75% of the variance in center of gravity (R² = 0.75).
+
+---
+
+# assumptions dataset
+
+```{r, echo=FALSE}
+assumptions_data <- read_csv("../data_raw/fricatives/assumptions.csv")
+str(assumptions_data)
+```
+
+---
+
+```{r, echo=FALSE}
+assumptions_data |>
+  ggplot() +
+  aes(x = x, y = y) +
+  geom_point()
+```
+
+### The relationship between x and y is definitely not linear. It is actually a dinosaur relationship! We cannot fit a linear model to this dataset. 
+
+
+
+
+
+
